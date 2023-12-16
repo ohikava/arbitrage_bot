@@ -10,4 +10,10 @@ class Market(object):
     
     def get_symbol_depth(self, symbol):
         return {}
+
+    def _format_data(self, data):
+        res = {}
+        res['bids'] = data['data']['bids']
+        res['asks'] = data['data']['asks']
+        return res 
     

@@ -9,50 +9,35 @@ from arbitrage.cex.market import Market
 load_dotenv()  
 
 
-url = "https://api.bybit.com"
-api_key=os.getenv('BYBIT_API_KEY')
-secret_key=os.getenv('BYBIT_API_SECRET')
-
-httpClient=requests.Session()
-recv_window=str(10000)
+APIURL = "https://api.bybit.com"
 
 class ByBit(Market):
-    def _http_request(self, endPoint,method,payload,Info):
-        global time_stamp
-        time_stamp=str(int(time.time() * 10 ** 3))
-        signature=self._get_signature(payload)
+    def _send_request(self, method, endpoint, params):
+        url = f"{APIURL}/{endpoint}"
+  
+        response = requests.request(method, url, params=params)
+        
+        return response.json()
+    
+    def get_symbol_depth(self, symbol: str) -> float:
+        path = '/v5/market/orderbook'
 
-        headers = {
-            'X-BAPI-API-KEY': api_key,
-            'X-BAPI-SIGN': signature,
-            'X-BAPI-SIGN-TYPE': '2',
-            'X-BAPI-TIMESTAMP': time_stamp,
-            'X-BAPI-RECV-WINDOW': recv_window,
-            'Content-Type': 'application/json'
+        method = "GET"
+        params = {
+        "symbol": f"{symbol}",
+        "category": "spot",
+        "limit": "100",
         }
-        if(method=="POST"):
-            response = httpClient.request(method, url+endPoint, headers=headers, data=payload)
-        else:
-            response = httpClient.request(method, url+endPoint+"?"+payload, headers=headers)
-        print(response.text)
-        print(Info + " Elapsed Time : " + str(response.elapsed))
 
-    def _get_signature(self, payload):
-        param_str= str(time_stamp) + api_key + recv_window + payload
-        hash = hmac.new(bytes(secret_key, "utf-8"), param_str.encode("utf-8"),hashlib.sha256)
-        signature = hash.hexdigest()
-        return signature
+        res_json = self._send_request(method, path, params)
+        res = self._format_data(res_json)
 
-    def get_unfilled_orders(self, basecoin, settlecoin):
-        endpoint = "/v5/order/realtime"
-        method = 'GET'
-        params=f'category=spot&symbol={basecoin}{settlecoin}'
-        self._http_request(endpoint, method, params, 'UnFilled')
-
-
-if __name__ == "__main__":
-    bybit = Bybit()
-    bybit.get_unfilled_orders(basecoin='BTC', settlecoin='USDT')
-
+        return res
+    
+    def _format_data(self, data):
+        res = {}
+        res['bids'] = data['result']['b']
+        res['asks'] = data['result']['a']
+        return res 
 
 

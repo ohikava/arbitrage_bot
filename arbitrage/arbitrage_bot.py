@@ -1,4 +1,5 @@
 from arbitrage import config 
+import json 
 
 class ArbitrageBot:
     def __init__(self) -> None:
@@ -48,10 +49,15 @@ class ArbitrageBot:
         
         for market in self.markets:
             self.depths[pair][market.name] = market.get_symbol_depth(pair)
+        
 
     def watch(self, args):
         self.load_pair_depth('BTCUSDT') 
-        
+
+        with open("all_data.json", 'w') as file:
+            json.dump(self.depths, file)
+
+
     
 
 

@@ -59,14 +59,3 @@ class BingX(Market):
 
         return res
     
-    def _format_data(self, data):
-        res = {}
-        res['bids'] = data['data']['bids']
-        res['asks'] = data['data']['asks']
-        return res 
-    
-
-
-if __name__ == "__main__":
-    bingx = BingX()
-    print(bingx.get_token_price('BTCUSDT'))
