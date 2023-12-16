@@ -21,7 +21,6 @@ class ArbitrageBot:
                 self.markets.append(market)
 
             except (ImportError, AttributeError) as e:
-                raise e
                 print(
                     "%s market name is invalid: Ignored (you should check your config file)"
                     % (market_name)
@@ -43,8 +42,16 @@ class ArbitrageBot:
                     "%s observer name is invalid: Ignored (you should check your config file)"
                     % (observer_name)
                 )
+    
+    def load_pair_depth(self, pair):
+        self.depths[pair] = {}
+        
+        for market in self.markets:
+            self.depths[pair][market.name] = market.get_symbol_depth(pair)
+
     def watch(self, args):
-        pass 
+        self.load_pair_depth('BTCUSDT') 
+        
     
 
 

@@ -17,9 +17,6 @@ httpClient=requests.Session()
 recv_window=str(10000)
 
 class ByBit(Market):
-    def __init__(self) -> None:
-        pass
-    
     def _http_request(self, endPoint,method,payload,Info):
         global time_stamp
         time_stamp=str(int(time.time() * 10 ** 3))

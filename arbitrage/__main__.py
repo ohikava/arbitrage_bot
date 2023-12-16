@@ -1,5 +1,5 @@
 import argparse
-from arbitrage.arbitrage import ArbitrageBot
+from arbitrage.arbitrage_bot import ArbitrageBot
 import logging 
 
 class Cli:
