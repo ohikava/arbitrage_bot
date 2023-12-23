@@ -1,11 +1,13 @@
 from arbitrage import config 
 import json 
+from arbitrage.tokens import Tokens
 
 class ArbitrageBot:
     def __init__(self) -> None:
         self.markets = []
         self.observers = []
         self.depths = {} 
+        self.tokens = Tokens()
 
         self.init_markets(config.markets)
         self.init_observers(config.observers)
@@ -52,13 +54,12 @@ class ArbitrageBot:
         
 
     def watch(self, args):
-        self.load_pair_depth('BTCUSDT') 
-
+        for token in self.tokens:
+            self.load_pair_depth(token)
+        
         with open("all_data.json", 'w') as file:
             json.dump(self.depths, file)
         
-        print(self.find_spread(self.depths['BTCUSDT']))
-
     def _find_spread_by_two_cex(self, cex1_info, cex2_info, spread_limit=0.05):
         bids1 = [float(i[0]) for i in cex1_info['bids']]
         bids2 = [float(i[0]) for i in cex2_info['bids']]
