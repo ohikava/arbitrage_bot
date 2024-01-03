@@ -4,6 +4,7 @@ import logging
 import time 
 from datetime import datetime 
 import asyncio 
+import aiohttp
 
 logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.INFO, filename=f"logs/{datetime.today().strftime('%Y-%m-%d')}.txt")
 
@@ -21,18 +22,31 @@ class ArbitrageBot:
 
         self.spread_limit = 0.05
     
-    def _get_depths(self, pair):
+    async def _get_depths(self, pair):
         self.depths[pair] = {}
-        
-        for market in self.markets:
-            if not market.check_symbol_listed(pair):
-                continue 
+        tasks = []
+        tasks_names = []
 
-            depth = market.get_symbol_depth(pair)
-            if not depth:
-                raise "Error. Too many requests"
-            
-            self.depths[pair][market.name] = depth 
+        async with aiohttp.ClientSession() as session:
+            for market in self.markets:
+                if not market.check_symbol_listed(pair):
+                    continue 
+
+                task =  market.get_symbol_depth(pair, session)
+                tasks.append(task)
+                tasks_names.append(market.name)
+                
+                
+            responses = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for i in range(len(responses)):
+                market = tasks_names[i]
+                depth = responses[i]
+
+                if depth is None:
+                    continue
+
+                self.depths[pair][market] = depth
         
     def _find_spread_by_two_cex(self, cex1:str, cex1_info:dict, cex2:str, cex2_info:dict) -> dict | None:
         """
@@ -129,15 +143,15 @@ class ArbitrageBot:
         Function loads current depth from all markets and looks for arbitrage opportunities
         """
         for symbol in self.tokens:
-            self._get_depths(symbol)
+            asyncio.run(self._get_depths(symbol))
         
-
-
         spreads = self.find_spread(self.depths)
 
         for opportunity in spreads:
             for observer in self.observers:
                 observer.opportunity(*opportunity)
+
+        # print(self.depths)
 
     def find_spread(self, depth):
         """

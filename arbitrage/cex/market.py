@@ -1,5 +1,6 @@
 import logging
 import time 
+import aiohttp 
 
 class Market(object):
     def __init__(self) -> None:
@@ -11,13 +12,42 @@ class Market(object):
         with open(f"symbols/{self.name.lower()}.txt") as file:
             self.listed_tokens = [i.strip() for i in file.readlines()]
 
-    
-    def convert_to_usd(self):
-        pass 
-    
-    def get_symbol_depth(self, symbol):
-        return {}
+    async def _send_request(self, uri: str, params: dict, session: aiohttp.ClientSession):
+        """
+        Sends request to the exchange
+        :param uri: uri of the request
+        :param params: parameters of the request
+        :param session: session that will be used to send requests
+        :return: response of the request
+        """
+        self.check_time_restrictions()
 
+        async with session.get(uri, params=params) as response:
+            if self.check_response(response):
+                return await response.json()
+
+    async def get_symbol_depth(self, symbol: str, session: aiohttp.ClientSession, limit: int = 5) -> dict:
+        """
+        Returns the depth of the symbol 
+        :param symbol: it is the symbol
+        :param session: session that will be used to send requests
+        :param limit: number of orders in the depth
+        :return: dict with bids and asks
+        """
+
+        symbol = self._convert_symbols(symbol)
+        url, params = self.get_request_info(symbol, limit)
+
+
+        res_json = await self._send_request(url, params, session)
+        self.last_request = time.time()
+        self.requests_num += 1
+        
+        if res_json:
+            res = self._format_data(res_json)
+            return res
+        return None 
+    
     def _format_data(self, data):
         res = {}
         res['bids'] = data['data']['bids']
@@ -29,13 +59,6 @@ class Market(object):
             data = file.readlines()
         data = [i.strip() for i in data]
         return set(data)
-    
-    def _convert_symbols(self, symbol:str) -> str:
-        """
-        This function is used to convert standart symbol name to special form for a particular exchange.
-        By default, returns initial symbol
-        """
-        return symbol
     
     def check_time_restrictions(self):
         """
@@ -49,16 +72,31 @@ class Market(object):
         """
         Checks the response code
         """
-        if response.status_code == 200:
+        if response.status == 200:
             return True 
-        elif response.status_code == 429:
+        elif response.status == 429:
             logging.warn(f"Too many requests on {self.name} market")
             return False 
         else:
-            raise f"Error. Status code on {self.name} is {response.status_code}"
+            raise f"Error. Status code on {self.name} is {response.status}"
     
     def check_symbol_listed(self, symbol: str):
         """
         Checks whether the symbol is being listed on a CEX
         """
         return symbol in self.listed_tokens
+    
+    def get_request_info(self, symbol: str, limit: int) -> tuple:
+        """
+        Returns all information that is needed to send a request
+        :return: (uri, params)
+        """
+        return (None, None)
+    
+    def _convert_symbols(self, symbol:str) -> str:
+        """
+        This function is used to convert standart symbol name to special form for a particular exchange.
+        By default, returns initial symbol
+        """
+        return symbol
+
