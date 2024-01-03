@@ -1,6 +1,11 @@
 from arbitrage import config 
-import json 
 from arbitrage.tokens import Tokens
+import logging
+import time 
+from datetime import datetime 
+import asyncio 
+
+logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.INFO, filename=f"logs/{datetime.today().strftime('%Y-%m-%d')}.txt")
 
 class ArbitrageBot:
     def __init__(self) -> None:
@@ -8,17 +13,26 @@ class ArbitrageBot:
         self.observers = []
         self.depths = {} 
         self.tokens = Tokens()
+        self.tokens.set_filter('only_usdt')
+        self.tokens.set_limit(5)
 
         self.init_markets(config.markets)
         self.init_observers(config.observers)
 
         self.spread_limit = 0.05
     
-    def _load_pair_depth(self, pair):
+    def _get_depths(self, pair):
         self.depths[pair] = {}
         
         for market in self.markets:
-            self.depths[pair][market.name] = market.get_symbol_depth(pair)
+            if not market.check_symbol_listed(pair):
+                continue 
+
+            depth = market.get_symbol_depth(pair)
+            if not depth:
+                raise "Error. Too many requests"
+            
+            self.depths[pair][market.name] = depth 
         
     def _find_spread_by_two_cex(self, cex1:str, cex1_info:dict, cex2:str, cex2_info:dict) -> dict | None:
         """
@@ -99,21 +113,27 @@ class ArbitrageBot:
         Function start watching for arbitrage opportunities in infinite loop
         :param args: arguments of the arbitrage
         """
-        pass 
+        i = 1
+        while True:
+            t_s = time.time()
+            self.scan()
+            t_e = time.time()
+
+            logging.info(f"Iteration #{i} has ended. It took {t_e - t_s} seconds")
+
+            time.sleep(config.refresh_rate)
+            i += 1
         
     def scan(self):
         """
         Function loads current depth from all markets and looks for arbitrage opportunities
         """
-        # for token in self.tokens:
-        #     self._load_pair_depth(token)
-        
-        with open("tests/fake_spreads.json", 'r') as file:
-            depths = json.load(file)
+        for symbol in self.tokens:
+            self._get_depths(symbol)
         
 
 
-        spreads = self.find_spread(depths)
+        spreads = self.find_spread(self.depths)
 
         for opportunity in spreads:
             for observer in self.observers:

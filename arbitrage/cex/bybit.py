@@ -1,12 +1,8 @@
 import requests 
 import os 
-from dotenv import load_dotenv
 import time 
-import hmac
-import hashlib
-from arbitrage.cex.market import Market
 
-load_dotenv()  
+from arbitrage.cex.market import Market
 
 
 APIURL = "https://api.bybit.com"
@@ -14,23 +10,20 @@ APIURL = "https://api.bybit.com"
 class ByBit(Market):
     def __init__(self) -> None:
         super().__init__()
-        self.LIMIT = 120
-        self.TIME_RATE = 5
+        self.LIMIT = 10
+        self.TIME_RATE = 1
 
     def _send_request(self, method, endpoint, params):
         url = f"{APIURL}/{endpoint}"
         
-        if self.requests_num > 120 and time.time() - self.last_request < self.TIME_RATE:
-            print(self.TIME_RATE - time.time() + self.last_request + 1)
-            time.sleep(self.TIME_RATE - time.time() + self.last_request + 1)
-            self.requests_num = 0
-
+        self.check_time_restrictions()
         response = requests.request(method, url, params=params)
         self.requests_num += 1
         self.last_request = time.time()
         
-        return response.json()
-    
+        if self.check_response(response):
+            return response.json() 
+            
     def get_symbol_depth(self, symbol: str) -> float:
         path = '/v5/market/orderbook'
 

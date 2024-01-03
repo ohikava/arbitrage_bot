@@ -1,6 +1,6 @@
 markets = [
     "ByBit",
-    # 'BitGet',
+    'BitGet',
     # 'MEXC',
     # 'BingX'
 ]
