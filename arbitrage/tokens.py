@@ -1,7 +1,15 @@
 import copy
 
-FILTERS = {
-    'only_usdt': lambda token: 'USDT' in token.split('/'),
+ONLY_USDT = "ONLY_USDT"
+ONLY_USDC = "ONLY_USDC"
+ONLY_STABLECOINS = "ONLY_STABLECOINS"
+ONLY_SHITCOINS = "ONLY_SHITCOINS"
+ONLY_REAL_COINS = "ONLY_REAL_COINS"
+
+filters = {
+    ONLY_USDT: lambda x: 'USDT' in x,
+    ONLY_USDC: lambda x: 'USDC' in x,
+    ONLY_STABLECOINS: lambda x: 'USDT' in x or 'USDC' in x
 }
 
 class Tokens:
@@ -11,11 +19,11 @@ class Tokens:
         1. Provide a list of tokens to be used in the arbitrage bot
         2. Provide a way to filter out tokens that are not supported by the exchanges
         """
-        self.filters = []
+        self.filters = set()
         self.all_tokens = ['BTC/USDT']
         self.limit = None 
 
-        with open("symbols/bybit.txt", "r") as file:
+        with open("symbols/all.txt", "r") as file:
             self.all_tokens = [i.strip() for i in file.read().splitlines()]
 
         
@@ -27,35 +35,30 @@ class Tokens:
         Update the list of tokens that will be used in arbitrage
         """
         self.tokens = []
-        for filter in self.filters:
-            for token in self.all_tokens:
-                if FILTERS[filter](token):
-                    self.tokens.append(token)
+        for token in self.all_tokens:
+            for filter in self.filters:
+                if not filters[filter](token):
+                    continue 
+            self.tokens.append(token)
 
-        if len(self.filters) == 0:
-            self.tokens = copy.copy(self.all_tokens)
         if self.limit:
             self.tokens = self.tokens[:self.limit]
 
-    def set_filter(self, filter):
+
+    def set_filter(self, filter:str):
         """
         Used to set filters for the tokens
         Available options:
-        - only_usdt
+        - ONLY_USDT
+        - ONLY_USDC
+        - ONLY_STABLECOINS
         """
 
         if filter not in self.filters:
-            self.filters.append(filter)
+            self.filters.add(filter)
 
         self._update_tokens_list()
-    
-    def set_limit(self, limit:int):
-        """
-        Set limi for the amount of tokens to be used in arbitrage
-        """
-        self.limit = limit
-        self._update_tokens_list()
-        
+
     def remove_filter(self, filter:str):
         """
         Remove a filter from the list of filters
@@ -63,21 +66,13 @@ class Tokens:
         self.filters.remove(filter)
 
         self._update_tokens_list()
-
-    def load_available_tokens(self, exchanges:list):
-        """
-        Load all tokens available on the exchanges
-        """
-        self.exchanges_tokens = {}
-        for exchange in exchanges:
-            self.exchanges_tokens[exchange] = exchange.get_available_tokens()
-
     
-    def filter(self, exchange:str, symbol:str) -> bool:
+    def set_limit(self, limit:int):
         """
-        Return True if the symbol is available on the exchange
+        Set limit for the amount of tokens to be used in arbitrage
         """
-        return symbol in self.exchanges_tokens[exchange] 
+        self.limit = limit
+        self._update_tokens_list()
     
     def __iter__(self):
         return iter(self.tokens)

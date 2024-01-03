@@ -1,5 +1,5 @@
 from arbitrage import config 
-from arbitrage.tokens import Tokens
+from arbitrage.tokens import Tokens, ONLY_USDT, ONLY_USDC, ONLY_STABLECOINS
 import logging
 import time 
 from datetime import datetime 
@@ -14,7 +14,7 @@ class ArbitrageBot:
         self.observers = []
         self.depths = {} 
         self.tokens = Tokens()
-        self.tokens.set_filter('only_usdt')
+        self.tokens.set_filter(ONLY_STABLECOINS)
         self.tokens.set_limit(5)
 
         self.init_markets(config.markets)

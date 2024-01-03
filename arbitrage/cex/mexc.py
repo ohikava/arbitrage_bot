@@ -4,26 +4,25 @@ import requests
 
 APIURL = "https://api.mexc.com"
 class MEXC(Market):
-    def _send_request(self, method, endpoint, params):
-        url = f"{APIURL}/{endpoint}"
-  
-        response = requests.request(method, url, params=params)
-        
-        return response.json()
-    
-    def get_symbol_depth(self, symbol: str) -> float:
-        path = '/api/v3/depth'
+    def __init__(self) -> None:
+        super().__init__()
+        self.LIMIT = 20000
+        self.TIME_RATE = 60
 
-        method = "GET"
+    def _convert_symbols(self, symbol: str) -> str:
+        return symbol.replace("/", "")
+    
+    def get_request_info(self, symbol: str, limit: int) -> tuple:
+        path = 'api/v3/depth'
+        uri = f"{APIURL}/{path}"
+
         params = {
         "symbol": f"{symbol}",
-        "limit": "100",
+        "limit": f"{limit}",
         }
 
-        res_json = self._send_request(method, path, params)
-        res = self._format_data(res_json)
-
-        return res
+        return (uri, params)
+    
     
     def _format_data(self, data):
         res = {}

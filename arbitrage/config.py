@@ -1,8 +1,8 @@
 markets = [
     "ByBit",
     'BitGet',
-    # 'MEXC',
-    # 'BingX'
+    'MEXC',
+    'BingX'
 ]
 
 observers = ['Logger']

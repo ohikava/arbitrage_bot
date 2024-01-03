@@ -4,6 +4,7 @@ import requests
 import hmac 
 from hashlib import sha256
 from dotenv import load_dotenv
+import aiohttp 
 import time 
 import json 
 
@@ -11,51 +12,48 @@ load_dotenv()
 
 APIURL = "https://open-api.bingx.com"
 
-symbols_mapping = {
-    "BTCUSDT": 'BTC-USDT'
-}
-
-
 class BingX(Market):
     def __init__(self) -> None:
         super().__init__()
         self.api_key = os.getenv("BINGX_API_KEY")
         self.secret_key = os.getenv("BINGX_SECRET_KEY")
+        self.LIMIT = 10
+        self.TIME_RATE = 1
 
     def _get_sign(self, payload):
         signature = hmac.new(self.secret_key.encode("utf-8"), payload.encode("utf-8"), digestmod=sha256).hexdigest()
-        print("sign=" + signature)
         return signature
 
-
-    def _send_request(self, method, path, urlpa, payload):
-        url = "%s%s?%s&signature=%s" % (APIURL, path, urlpa, self._get_sign(urlpa))
-        print(url)
-        headers = {
-            'X-BX-APIKEY': self.api_key,
+    def get_request_info(self, symbol: str, limit: int) -> tuple:
+        params = {
+        "symbol": symbol,
+        "limit": f"{limit}",
         }
-        response = requests.request(method, url, headers=headers, data=payload)
-        
-        return response.json()
 
-    def _params2str(self, paramsMap:dict):
+        uri = f"{APIURL}/openApi/swap/v2/quote/depth"
+               
+        return uri, params 
+    
+    def _praseParam(self, paramsMap):
         sortedKeys = sorted(paramsMap)
         paramsStr = "&".join(["%s=%s" % (x, paramsMap[x]) for x in sortedKeys])
         return paramsStr+"&timestamp="+str(int(time.time() * 1000))
+    
+    async def _send_request(self, uri: str, params: dict, session: aiohttp.ClientSession):
+        self.check_time_restrictions()
 
-    def get_symbol_depth(self, symbol: str) -> float:
-        payload = {}
-        path = '/openApi/swap/v2/quote/depth'
-        method = "GET"
-        params = {
-        "symbol": symbols_mapping[symbol],
-        "limit": "100"
+        params_str = self._praseParam(params)
+        headers = {
+            'X-BX-APIKEY': self.api_key,
         }
-        params_str = self._params2str(params)
-        
-        res_json = self._send_request(method, path, params_str, payload)
 
-        res = self._format_data(res_json)
+        uri = f"{uri}?{params_str}&signature={self._get_sign(params_str)}"
 
-        return res
+        async with session.get(uri, headers=headers, data={}) as response:
+            if self.check_response(response):
+                return await response.json()
+
+    def _convert_symbols(self, symbol: str) -> str:
+        return symbol.replace('/', '-')
+    
     
