@@ -5,6 +5,7 @@ import time
 from datetime import datetime 
 import asyncio 
 import aiohttp
+import json 
 
 logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.INFO, filename=f"logs/{datetime.today().strftime('%Y-%m-%d')}.txt")
 
@@ -144,6 +145,9 @@ class ArbitrageBot:
         """
         for symbol in self.tokens:
             asyncio.run(self._get_depths(symbol))
+        
+        # with open("tests/fake_spreads.json") as file:
+        #     self.depths = json.load(file)
         
         spreads = self.find_spread(self.depths)
 
