@@ -14,7 +14,8 @@ class TelegramBot(Observer):
         bid_price:str,
         ask_price:str,
         spread:str,
-        liquidity:str,
+        bid_liquidity:str,
+        ask_liquidity:str,
         symbol:str
     ):  
         url = f"{URL}/opportunity"
@@ -25,6 +26,7 @@ class TelegramBot(Observer):
             "ask_price": ask_price,
             "spread": spread,
             "symbol": symbol,
-            "liquidity": liquidity
+            "bid_liquidity": bid_liquidity,
+            "ask_liquidity": ask_liquidity
         }
         res = requests.post(url, data=json.dumps(body))

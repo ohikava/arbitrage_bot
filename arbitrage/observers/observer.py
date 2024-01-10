@@ -10,7 +10,8 @@ class Observer(object, metaclass=abc.ABCMeta):
         bid_price:str,
         ask_price:str,
         spread:str,
-        liquidity:str,
+        bid_liquidity:str,
+        ask_liquidity:str,
         symbol:str
     ):
         """
@@ -20,7 +21,8 @@ class Observer(object, metaclass=abc.ABCMeta):
         :param bid_price: highest bid price
         :param ask_price: lowest ask price
         :param spread: spread value
-        :param liquidity: liquidity value
+        :param bid_liquidity: liquidity of the highest bid
+        :param ask_liquidity: liquidity of the lowest ask
         :param symbol: symbol of the pair
         """
         pass

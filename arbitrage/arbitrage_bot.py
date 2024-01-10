@@ -68,15 +68,11 @@ class ArbitrageBot:
 
         spread1 = (bids_cex1[0] - asks_cex2[0]) / asks_cex2[0]
         if spread1 > self.spread_limit:
-            liquidity = min(float(cex1_info['bids'][0][1]), float(cex2_info['asks'][0][1]))
-
-            return (cex1, cex2, cex1_info['bids'][0][0], cex2_info['asks'][0][0], str(spread1), str(liquidity))
+            return (cex1, cex2, cex1_info['bids'][0][0], cex2_info['asks'][0][0], str(spread1), cex1_info['bids'][0][1], cex2_info['asks'][0][1])
         
         spread2 = (bids_cex2[0] - asks_cex1[0]) / asks_cex1[0]
         if spread2 > self.spread_limit:
-            liquidity = min(float(cex1_info['asks'][0][1]), float(cex2_info['bids'][0][1]))
-
-            return (cex2, cex1, cex2_info['bids'][0][0], cex1_info['asks'][0][0], str(spread2), str(liquidity))
+            return (cex2, cex1, cex2_info['bids'][0][0], cex1_info['asks'][0][0], str(spread2), cex2_info['bids'][0][1], cex1_info['asks'][0][1])
         
         return None
 
@@ -138,16 +134,24 @@ class ArbitrageBot:
 
             time.sleep(config.refresh_rate)
             i += 1
-        
+    
+    def filter_oppotunities(self, opportunities:list):
+        """
+        Function filters opportunities by addtional conditions and add some extra info
+        :param opportunities: list of opportunities
+        :returns: list of filtered opportunities
+        """
+        pass 
+
     def scan(self):
         """
         Function loads current depth from all markets and looks for arbitrage opportunities
         """
-        for symbol in self.tokens:
-            asyncio.run(self._get_depths(symbol))
+        # for symbol in self.tokens:
+        #     asyncio.run(self._get_depths(symbol))
         
-        # with open("tests/fake_spreads.json") as file:
-        #     self.depths = json.load(file)
+        with open("tests/fake_spreads.json") as file:
+            self.depths = json.load(file)
         
         spreads = self.find_spread(self.depths)
 

@@ -14,8 +14,9 @@ class Logger(Observer):
         bid_price:str,
         ask_price:str,
         spread:str,
-        liquidity:str,
+        bid_liquidity:str,
+        ask_liquidity:str,
         symbol:str
     ):
     
-        logging.info(f"{symbol} {ask}: {ask_price} -> {bid}: {bid_price}, spread: {round(float(spread)*100, 5)}%, liquidty: {liquidity}")
+        logging.info(f"{symbol} {ask}: {ask_price} -> {bid}: {bid_price}, spread: {round(float(spread)*100, 5)}%, liquidty: {ask_liquidity}")
