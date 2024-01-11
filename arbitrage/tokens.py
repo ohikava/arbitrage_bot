@@ -1,4 +1,5 @@
 import copy
+from collections import Counter 
 
 ONLY_USDT = "ONLY_USDT"
 ONLY_USDC = "ONLY_USDC"
@@ -9,7 +10,7 @@ ONLY_REAL_COINS = "ONLY_REAL_COINS"
 filters = {
     ONLY_USDT: lambda x: 'USDT' in x,
     ONLY_USDC: lambda x: 'USDC' in x,
-    ONLY_STABLECOINS: lambda x: 'USDT' in x or 'USDC' in x
+    ONLY_STABLECOINS: lambda x: 'USDT' in x or 'USDC' in x or 'TUSD' in x or 'BUSD' in x or 'DAI' in x or 'USDD' in x
 }
 
 class Tokens:
@@ -23,11 +24,11 @@ class Tokens:
         self.all_tokens = ['BTC/USDT']
         self.limit = None 
 
-        with open("symbols/all.txt", "r") as file:
-            self.all_tokens = [i.strip() for i in file.read().splitlines()]
-
-        
-        self._update_tokens_list()
+        self.bl = set({
+            "BTC",
+            "ETH",
+            'EUR'
+        })
         
 
     def _update_tokens_list(self):
@@ -36,9 +37,17 @@ class Tokens:
         """
         self.tokens = []
         for token in self.all_tokens:
+            main_coin = token.split('/')[0]
+            quote_coin = token.split("/")[1]
+
+            skip_token = False 
             for filter in self.filters:
-                if not filters[filter](token):
-                    continue 
+                if not filters[filter](token) or main_coin in self.bl or quote_coin in self.bl:
+                    skip_token = True
+                    break
+            if skip_token:
+                continue 
+             
             self.tokens.append(token)
 
         if self.limit:
@@ -59,6 +68,22 @@ class Tokens:
 
         self._update_tokens_list()
 
+    def add_token_to_bl(self, token:str):
+        """
+        Add token to the blacklist
+        """
+        self.bl.add(token)
+
+        self._update_tokens_list()
+
+    def remove_token_from_bl(self, token:str):
+        """
+        Remove token from the blacklist
+        """
+        self.bl.remove(token)
+
+        self._update_tokens_list()
+
     def remove_filter(self, filter:str):
         """
         Remove a filter from the list of filters
@@ -76,3 +101,20 @@ class Tokens:
     
     def __iter__(self):
         return iter(self.tokens)
+    
+    def update_list_of_tokens(self, markets: list):
+        """
+        Updates list of all available tokens
+        :param markets: list of markets
+        """
+        
+        all_tokens = sum([i.listed_tokens for i in markets], [])
+        tokens_counts = Counter(all_tokens)
+
+        all_tokens_processed = [key for key, value in tokens_counts.items() if value >= 2]
+
+        self.all_tokens = all_tokens_processed
+
+        self._update_tokens_list()
+
+

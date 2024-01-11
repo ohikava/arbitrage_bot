@@ -1,5 +1,5 @@
 from arbitrage import config 
-from arbitrage.tokens import Tokens, ONLY_USDT, ONLY_USDC, ONLY_STABLECOINS
+from arbitrage.tokens import Tokens, ONLY_STABLECOINS
 import logging
 import time 
 from datetime import datetime 
@@ -127,7 +127,7 @@ class ArbitrageBot:
         """
         i = 1
 
-        self.last_symbols_update = time.time()
+        self.last_symbols_update = None # Initialistion
 
         while True:
             self.update_symbols()
@@ -163,9 +163,12 @@ class ArbitrageBot:
         """
         Runs _load_available_symbols with particular interval
         """
-        if time.time() - self.last_symbols_update > self.symbols_update_interval:
+        if not self.last_symbols_update or time.time() - self.last_symbols_update > self.symbols_update_interval:
                 asyncio.run(self._load_available_symbols())
                 self.last_symbols_update = time.time()
+
+                self.tokens.update_list_of_tokens(self.markets)
+
 
     
     def filter_oppotunities(self, opportunities:list):
@@ -180,17 +183,18 @@ class ArbitrageBot:
         """
         Function loads current depth from all markets and looks for arbitrage opportunities
         """
-        # for symbol in self.tokens:
-        #     asyncio.run(self._get_depths(symbol))
+        for symbol in self.tokens:
+            asyncio.run(self._get_depths(symbol))
         
-        with open("tests/fake_spreads.json") as file:
-            self.depths = json.load(file)
+        print(self.depths)
+        # with open("tests/fake_spreads.json") as file:
+        #     self.depths = json.load(file)
         
-        spreads = self.find_spread(self.depths)
+        # spreads = self.find_spread(self.depths)
 
-        for opportunity in spreads:
-            for observer in self.observers:
-                observer.opportunity(*opportunity)
+        # for opportunity in spreads:
+        #     for observer in self.observers:
+        #         observer.opportunity(*opportunity)
 
         # print(self.depths)
 
