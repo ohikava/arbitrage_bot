@@ -1,5 +1,5 @@
-import copy
 from collections import Counter 
+import logging 
 
 ONLY_USDT = "ONLY_USDT"
 ONLY_USDC = "ONLY_USDC"
@@ -47,12 +47,11 @@ class Tokens:
                     break
             if skip_token:
                 continue 
-             
+
             self.tokens.append(token)
 
         if self.limit:
             self.tokens = self.tokens[:self.limit]
-
 
     def set_filter(self, filter:str):
         """
@@ -114,6 +113,7 @@ class Tokens:
         all_tokens_processed = [key for key, value in tokens_counts.items() if value >= 2]
 
         self.all_tokens = all_tokens_processed
+        logging.debug(f"Symbols have been updated. Loaded {len(self.all_tokens)} symbols")
 
         self._update_tokens_list()
 

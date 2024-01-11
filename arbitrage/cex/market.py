@@ -74,9 +74,10 @@ class Market(object):
         if response.status == 200:
             return True 
         elif response.status == 429:
-            logging.warn(f"Too many requests on {self.name} market")
-            return False 
+            logging.error(f"Too many requests on {self.name} market")
+            raise Exception(f"Too many requests on {self.name} market")
         else:
+            logging.error(f"Error. Status code on {self.name} is {response.status}")
             raise f"Error. Status code on {self.name} is {response.status}"
     
     def check_symbol_listed(self, symbol: str):

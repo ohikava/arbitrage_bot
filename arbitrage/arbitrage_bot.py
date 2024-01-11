@@ -7,7 +7,9 @@ import asyncio
 import aiohttp
 import json 
 
-logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.INFO, filename=f"logs/{datetime.today().strftime('%Y-%m-%d')}.txt")
+logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.DEBUG, filename=f"logs/{datetime.today().strftime('%Y-%m-%d')}.txt", filemode='w')
+
+logging.getLogger("asyncio").setLevel(logging.WARNING)
 
 class ArbitrageBot:
     def __init__(self) -> None:
@@ -130,13 +132,14 @@ class ArbitrageBot:
         self.last_symbols_update = None # Initialistion
 
         while True:
+            logging.debug(f"Iteration #{i} has started")
             self.update_symbols()
 
             t_s = time.time()
             self.scan()
             t_e = time.time()
 
-            logging.info(f"Iteration #{i} has ended. It took {t_e - t_s} seconds")
+            logging.debug(f"Iteration #{i} has ended. It took {t_e - t_s} seconds")
 
             time.sleep(config.refresh_rate)
             i += 1
@@ -166,7 +169,7 @@ class ArbitrageBot:
         if not self.last_symbols_update or time.time() - self.last_symbols_update > self.symbols_update_interval:
                 asyncio.run(self._load_available_symbols())
                 self.last_symbols_update = time.time()
-
+                
                 self.tokens.update_list_of_tokens(self.markets)
 
 
@@ -186,15 +189,17 @@ class ArbitrageBot:
         for symbol in self.tokens:
             asyncio.run(self._get_depths(symbol))
         
-        print(self.depths)
+        logging.debug(f"Depths have been loaded. Loaded {len(self.depths)} depths")
+        
         # with open("tests/fake_spreads.json") as file:
         #     self.depths = json.load(file)
         
-        # spreads = self.find_spread(self.depths)
+        spreads = self.find_spread(self.depths)
+        logging.debug(f"Spreads have been found. Found {len(spreads)} spreads")
 
-        # for opportunity in spreads:
-        #     for observer in self.observers:
-        #         observer.opportunity(*opportunity)
+        for opportunity in spreads:
+            for observer in self.observers:
+                observer.opportunity(*opportunity)
 
         # print(self.depths)
 
