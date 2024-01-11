@@ -22,6 +22,7 @@ class ArbitrageBot:
         self.init_observers(config.observers)
 
         self.spread_limit = 0.05
+        self.symbols_update_interval = 60 * 60 * 2
     
     async def _get_depths(self, pair):
         self.depths[pair] = {}
@@ -125,7 +126,12 @@ class ArbitrageBot:
         :param args: arguments of the arbitrage
         """
         i = 1
+
+        self.last_symbols_update = time.time()
+
         while True:
+            self.update_symbols()
+
             t_s = time.time()
             self.scan()
             t_e = time.time()
@@ -134,6 +140,33 @@ class ArbitrageBot:
 
             time.sleep(config.refresh_rate)
             i += 1
+    
+    async def _load_available_symbols(self):
+        """
+        Function loads available symbols for every market
+        """
+        tasks = []
+        async with aiohttp.ClientSession() as session:
+            for market in self.markets:
+
+                task =  market.load_symbols(session)
+                tasks.append(task)
+                
+                
+            responses = await asyncio.gather(*tasks, return_exceptions=True) 
+
+        for ix, response in enumerate(responses):
+            if not (response is None):
+                raise Exception(f"{response.__class__.__name__}: {response} on {self.markets[ix].name} market")
+            
+    def update_symbols(self):
+        """
+        Runs _load_available_symbols with particular interval
+        """
+        if time.time() - self.last_symbols_update > self.symbols_update_interval:
+                asyncio.run(self._load_available_symbols())
+                self.last_symbols_update = time.time()
+
     
     def filter_oppotunities(self, opportunities:list):
         """

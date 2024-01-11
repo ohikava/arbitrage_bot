@@ -8,9 +8,8 @@ class Market(object):
         self.depth = {}
         self.last_request = None 
         self.requests_num = 0
+        self.TRADING_FEE = 0.1
         
-        with open(f"symbols/{self.name.lower()}.txt") as file:
-            self.listed_tokens = [i.strip() for i in file.readlines()]
 
     async def _send_request(self, uri: str, params: dict, session: aiohttp.ClientSession):
         """
@@ -99,4 +98,11 @@ class Market(object):
         By default, returns initial symbol
         """
         return symbol
+    
+    async def load_symbols(self, session: aiohttp.ClientSession):
+        """
+        This function is used to load all avaialable symbols from the exchange
+        :param session: session that will be used to send requests
+        """
+        pass
 

@@ -35,4 +35,19 @@ class ByBit(Market):
     def _convert_symbols(self, symbol: str) -> str:
         return symbol.replace("/", "")
 
+    async def load_symbols(self, session):
+        self.listed_tokens = []
+        
+        endpoint = "/v5/market/instruments-info?category=spot"
+        uri = f"{APIURL}{endpoint}"
+
+        res = await self._send_request(uri, {}, session)
+
+        self.requests_num += 1
+        self.last_request = time.time()
+        
+        for symbol in res['result']['list']:
+            self.listed_tokens.append(f"{symbol['baseCoin']}/{symbol['quoteCoin']}")
+
+    
 

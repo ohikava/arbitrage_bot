@@ -56,4 +56,17 @@ class BingX(Market):
     def _convert_symbols(self, symbol: str) -> str:
         return symbol.replace('/', '-')
     
-    
+    async def load_symbols(self, session):
+        self.listed_tokens = []
+        
+        endpoint = "/openApi/swap/v2/quote/ticker"
+        uri = f"{APIURL}{endpoint}"
+
+        res = await self._send_request(uri, {}, session)
+
+        self.requests_num += 1
+        self.last_request = time.time()
+
+        for symbol in res['data']:
+            pair = symbol['symbol'].split("-")
+            self.listed_tokens.append(f"{pair[0]}/{pair[1]}")
