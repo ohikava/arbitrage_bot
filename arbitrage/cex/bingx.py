@@ -39,19 +39,19 @@ class BingX(Market):
         paramsStr = "&".join(["%s=%s" % (x, paramsMap[x]) for x in sortedKeys])
         return paramsStr+"&timestamp="+str(int(time.time() * 1000))
     
-    async def _send_request(self, uri: str, params: dict, session: aiohttp.ClientSession):
-        self.check_time_restrictions()
+    # async def _send_request(self, uri: str, params: dict, session: aiohttp.ClientSession):
+    #     self.check_time_restrictions()
 
-        params_str = self._praseParam(params)
-        headers = {
-            'X-BX-APIKEY': self.api_key,
-        }
+    #     params_str = self._praseParam(params)
+    #     headers = {
+    #         'X-BX-APIKEY': self.api_key,
+    #     }
 
-        uri = f"{uri}?{params_str}&signature={self._get_sign(params_str)}"
+    #     uri = f"{uri}?{params_str}&signature={self._get_sign(params_str)}"
 
-        async with session.get(uri, headers=headers, data={}) as response:
-            if self.check_response(response):
-                return await response.json()
+    #     async with session.get(uri, headers=headers, data={}) as response:
+    #         if self.check_response(response):
+    #             return await response.json()
 
     def _convert_symbols(self, symbol: str) -> str:
         return symbol.replace('/', '-')
@@ -62,7 +62,15 @@ class BingX(Market):
         endpoint = "/openApi/swap/v2/quote/ticker"
         uri = f"{APIURL}{endpoint}"
 
-        res = await self._send_request(uri, {}, session)
+        headers = {
+            'X-BX-APIKEY': self.api_key,
+        }
+
+        params_str = self._praseParam({})
+
+        uri = f"{uri}?{params_str}&signature={self._get_sign(params_str)}"
+
+        res = await self._send_request(uri, {}, session, headers=headers)
 
         self.requests_num += 1
         self.last_request = time.time()
@@ -70,3 +78,32 @@ class BingX(Market):
         for symbol in res['data']:
             pair = symbol['symbol'].split("-")
             self.listed_tokens.append(f"{pair[0]}/{pair[1]}")
+
+        print(len(self.listed_tokens))
+
+    async def load_chains(self, session):
+        self.chains = {}
+
+        endpoint = "/openApi/wallets/v1/capital/config/getall"
+        uri = f"{APIURL}{endpoint}"
+
+        params = {
+            'recvWindow': 10000
+        }
+
+        headers = {
+            'X-BX-APIKEY': self.api_key,
+        }
+        
+        params_str = self._praseParam(params)
+
+        uri = f"{uri}?{params_str}&signature={self._get_sign(params_str)}"
+
+        res = await self._send_request(uri, params, session, headers=headers)
+
+        self.requests_num += 1
+        self.last_request = time.time()
+
+        for chain in res['data']:
+            self.chains[chain['coin']] = chain['networkList']
+

@@ -1,6 +1,8 @@
 import logging
 import time 
 import aiohttp 
+import hmac 
+from hashlib import sha256
 
 class Market(object):
     def __init__(self) -> None:
@@ -11,7 +13,7 @@ class Market(object):
         self.TRADING_FEE = 0.1
         
 
-    async def _send_request(self, uri: str, params: dict, session: aiohttp.ClientSession):
+    async def _send_request(self, uri: str, params: dict, session: aiohttp.ClientSession, headers: dict = {}):
         """
         Sends request to the exchange
         :param uri: uri of the request
@@ -20,10 +22,16 @@ class Market(object):
         :return: response of the request
         """
         self.check_time_restrictions()
-
-        async with session.get(uri, params=params) as response:
-            if self.check_response(response):
-                return await response.json()
+        if headers:
+            async with session.get(uri, headers=headers, data={}) as response:
+                msg = await response.text()
+                if self.check_response(response, msg):
+                    return await response.json() 
+        else:
+            async with session.get(uri, params=params) as response:
+                msg = await response.text()
+                if self.check_response(response, msg):
+                    return await response.json()
 
     async def get_symbol_depth(self, symbol: str, session: aiohttp.ClientSession, limit: int = 5) -> dict:
         """
@@ -63,11 +71,11 @@ class Market(object):
         """
         This function is used to follow markets rules on number of requests
         """
-        if self.requests_num > self.LIMIT and time.time() - self.last_request < self.TIME_RATE:
+        if self.requests_num >= self.LIMIT and time.time() - self.last_request <= self.TIME_RATE:
             time.sleep(self.TIME_RATE - time.time() + self.last_request + 1)
             self.requests_num = 0
 
-    def check_response(self, response):
+    def check_response(self, response, msg):
         """
         Checks the response code
         """
@@ -77,8 +85,8 @@ class Market(object):
             logging.error(f"Too many requests on {self.name} market")
             raise Exception(f"Too many requests on {self.name} market")
         else:
-            logging.error(f"Error. Status code on {self.name} is {response.status}")
-            raise f"Error. Status code on {self.name} is {response.status}"
+            logging.error(f"Error. Status code on {self.name} is {response.status}. msg: {msg}")
+            raise Exception(f"Error. Status code on {self.name} is {response.status}. msg: {msg}")
     
     def check_symbol_listed(self, symbol: str):
         """
@@ -107,3 +115,18 @@ class Market(object):
         """
         pass
 
+    async def load_chains(self, session: aiohttp.ClientSession):
+        """
+        This function is used to load information about fees, withdraw ability and other information about tokens
+        :param session: session that will be used to send requests
+        """
+        pass
+
+    def _get_sign(self, payload):
+        signature = hmac.new(self.secret_key.encode("utf-8"), payload.encode("utf-8"), digestmod=sha256).hexdigest()
+        return signature
+    
+    def _praseParam(self, paramsMap):
+        sortedKeys = sorted(paramsMap)
+        paramsStr = "&".join(["%s=%s" % (x, paramsMap[x]) for x in sortedKeys])
+        return paramsStr+"&timestamp="+str(int(time.time() * 1000))

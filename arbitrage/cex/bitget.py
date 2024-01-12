@@ -39,3 +39,17 @@ class BitGet(Market):
         for symbol in res['data']:
             self.listed_tokens.append(f"{symbol['baseCoin']}/{symbol['quoteCoin']}")
 
+    async def load_chains(self, session: aiohttp.ClientSession):
+        self.chains = {}
+
+        endpoint = "api/spot/v1/public/currencies"
+
+        uri = f"{APIURL}/{endpoint}"
+
+        res = await self._send_request(uri, {}, session)
+
+        self.requests_num += 1
+        self.last_request = time.time()
+
+        for chain in res['data']:
+            self.chains[chain['coinName']] = chain['chains']
