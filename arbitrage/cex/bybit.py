@@ -3,6 +3,7 @@ import os
 import time 
 import aiohttp
 from arbitrage.cex.market import Market
+from arbitrage.utils.chains_mapper import chains_mapping
 import hmac 
 from hashlib import sha256 
 
@@ -12,8 +13,7 @@ load_dotenv()
 
 
 APIURL = "https://api.bybit.com"
-chains_formater = {
-}
+
 
 class ByBit(Market):
     def __init__(self) -> None:
@@ -90,7 +90,7 @@ class ByBit(Market):
             self.chains[chain['coin']] = dict()
 
             for network in networkList:
-                formated_name = chains_formater.get(network['chain'], network['chain'])
+                formated_name = chains_mapping.get(network['chain'], network['chain'])
                 self.chains[chain['coin']][formated_name] = {
                     'deposit': bool(network.get('chainDeposit', None)),
                     'withdraw': bool(network.get('chainWithdraw', None)),

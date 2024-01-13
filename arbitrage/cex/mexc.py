@@ -5,15 +5,16 @@ import os
 import hmac 
 from hashlib import sha256
 import time 
+from arbitrage.utils.chains_mapper import chains_mapping
 
 load_dotenv()
 
 APIURL = "https://api.mexc.com"
 
-chains_formater = {
-    'BNB Smart Chain(BEP20)': 'BEP20',
-    'Bitcoin(BTC)': 'BTC',
-}
+# chains_formater = {
+#     'BNB Smart Chain(BEP20)': 'BEP20',
+#     'Bitcoin(BTC)': 'BTC',
+# }
 class MEXC(Market):
     def __init__(self) -> None:
         super().__init__()
@@ -99,7 +100,7 @@ class MEXC(Market):
             }
 
             for network in networkList:
-                formated_name = chains_formater.get(network['network'], network['network'])
+                formated_name = chains_mapping.get(network['network'], network['network'])
                 self.chains[chain['coin']][formated_name] = {
                     'deposit': network.get('depositEnable', None),
                     'withdraw': network.get('withdrawEnable', None),

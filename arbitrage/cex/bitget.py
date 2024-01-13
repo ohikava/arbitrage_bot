@@ -1,11 +1,12 @@
 from arbitrage.cex.market import Market
+from arbitrage.utils.chains_mapper import chains_mapping
 import aiohttp
 import time
 
 APIURL = "https://api.bitget.com"
 
-chains_formater = {
-}
+# chains_formater = {
+# }
 
 class BitGet(Market):
     def __init__(self) -> None:
@@ -60,7 +61,7 @@ class BitGet(Market):
             self.chains[chain['coinName']] = dict()
 
             for network in networkList:
-                formated_name = chains_formater.get(network['chain'], network['chain'])
+                formated_name = chains_mapping.get(network['chain'], network['chain'])
                 self.chains[chain['coinName']][formated_name] = {
                     'deposit': bool(network.get('rechargeable', None)),
                     'withdraw': bool(network.get('withdrawable', None)),

@@ -1,4 +1,5 @@
 from arbitrage.cex.market import Market
+from arbitrage.utils.chains_mapper import chains_mapping
 import os 
 import requests
 import hmac 
@@ -12,7 +13,6 @@ load_dotenv()
 
 APIURL = "https://open-api.bingx.com"
 
-chains_formater = {}
 
 class BingX(Market):
     def __init__(self) -> None:
@@ -81,7 +81,6 @@ class BingX(Market):
             pair = symbol['symbol'].split("-")
             self.listed_tokens.append(f"{pair[0]}/{pair[1]}")
 
-        print(len(self.listed_tokens))
 
     async def load_chains(self, session):
         self.chains = {}
@@ -111,7 +110,7 @@ class BingX(Market):
             self.chains[chain['coin']] = dict()
 
             for network in networkList:
-                formated_name = chains_formater.get(network['network'], network['network'])
+                formated_name = chains_mapping.get(network['network'], network['network'])
                 self.chains[chain['coin']][formated_name] = {
                     'deposit': bool(network.get('depositEnable', None)),
                     'withdraw': bool(network.get('withdrawEnable', None)),

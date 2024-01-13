@@ -1,6 +1,7 @@
 from arbitrage import config 
 from arbitrage.tokens import Tokens, ONLY_STABLECOINS
 from arbitrage.utils.chains_mapper import chains_mapping
+from arbitrage.utils.funcs import find_dicts_intersection
 import logging
 import time 
 from datetime import datetime 
@@ -24,9 +25,13 @@ class ArbitrageBot:
         self.init_markets(config.markets)
         self.init_observers(config.observers)
 
-        self.spread_limit = 0.05
+        self.spread_limit = 0.01
         self.symbols_update_interval = 60 * 60 * 2   
         self.chains_update_interval = 60 * 60 * 1
+
+
+        self.spreads_buffer = set()
+        self.buffer_update_interval = 60 * 60 * 1
 
     async def _get_depths(self, pair):
         self.depths[pair] = {}
@@ -72,12 +77,32 @@ class ArbitrageBot:
         
 
         spread1 = (bids_cex1[0] - asks_cex2[0]) / asks_cex2[0]
-        if spread1 > self.spread_limit:
-            return (cex1, cex2, cex1_info['bids'][0][0], cex2_info['asks'][0][0], str(spread1), cex1_info['bids'][0][1], cex2_info['asks'][0][1])
+        if spread1 >= self.spread_limit:
+            res = {
+                "cex_bid": cex1,
+                "cex_ask": cex2,
+                "bid_price": cex1_info['bids'][0][0],
+                "ask_price": cex2_info['asks'][0][0],
+                "spread": str(spread1),
+                "bid_liquidity": cex1_info['bids'][0][1],
+                "ask_liquidity": cex2_info['asks'][0][1],
+            }
+            return res
+            # return (cex1, cex2, cex1_info['bids'][0][0], cex2_info['asks'][0][0], str(spread1), cex1_info['bids'][0][1], cex2_info['asks'][0][1])
         
         spread2 = (bids_cex2[0] - asks_cex1[0]) / asks_cex1[0]
-        if spread2 > self.spread_limit:
-            return (cex2, cex1, cex2_info['bids'][0][0], cex1_info['asks'][0][0], str(spread2), cex2_info['bids'][0][1], cex1_info['asks'][0][1])
+        if spread2 >= self.spread_limit:
+            res = {
+                "cex_bid": cex2,
+                "cex_ask": cex1,
+                "bid_price": cex2_info['bids'][0][0],
+                "ask_price": cex1_info['asks'][0][0],
+                "spread": str(spread2),
+                "bid_liquidity": cex2_info['bids'][0][1],
+                "ask_liquidity": cex1_info['asks'][0][1],
+            }
+            return res 
+            # return (cex2, cex1, cex2_info['bids'][0][0], cex1_info['asks'][0][0], str(spread2), cex2_info['bids'][0][1], cex1_info['asks'][0][1])
         
         return None
 
@@ -132,11 +157,13 @@ class ArbitrageBot:
 
         self.last_symbols_update = None # Initialistion
         self.last_chains_update = None # Initialistion
+        self.last_buffer_update = None 
 
         while True:
             logging.debug(f"Iteration #{i} has started")
             self.update_symbols()
             self.update_chains()
+            self.update_buffer()
 
 
             # Commented code below is used to get all available chains for every token in order to find out chains that has different names on different markets
@@ -156,15 +183,24 @@ class ArbitrageBot:
             #     json.dump(list(b), file, indent=4)
             
 
-            # t_s = time.time()
-            # self.scan()
-            # t_e = time.time()
+            t_s = time.time()
+            self.scan()
+            t_e = time.time()
 
-            # logging.debug(f"Iteration #{i} has ended. It took {t_e - t_s} seconds")
+            logging.debug(f"Iteration #{i} has ended. It took {t_e - t_s} seconds")
 
             time.sleep(config.refresh_rate)
             i += 1
-    
+
+    def update_buffer(self):
+        """
+        Function clears buffer with spreads with particular interval
+        """
+        if not self.last_buffer_update or time.time() - self.last_buffer_update > self.buffer_update_interval:
+            self.spreads_buffer.clear()
+            
+            self.last_buffer_update = time.time()
+
     def update_chains(self):
         """
         Function updates chains for every market
@@ -223,14 +259,54 @@ class ArbitrageBot:
                 self.tokens.update_list_of_tokens(self.markets.values())
 
 
-    
-    def filter_oppotunities(self, opportunities:list):
+    def filter_spreads(self, spreads:list):
         """
-        Function filters opportunities by addtional conditions and add some extra info
-        :param opportunities: list of opportunities
-        :returns: list of filtered opportunities
+        Function filters spreads by addtional conditions and add some extra info
+        :param spreads: list of spreads
+        :returns: list of filtered spreads
         """
-        pass 
+        result = []
+        for spread in spreads:
+            if (spread['symbols'], spread['cex_ask'], spread['cex_bid']) in self.spreads_buffer:
+                continue 
+
+            res = []
+
+            cex_ask = spread['cex_ask']
+            cex_bid = spread['cex_bid']
+            symbol = spread['symbols']
+            token = symbol.split("/")[0]
+
+            chains1 = self.markets[cex_ask].chains.get(token, {})
+            chains2 = self.markets[cex_bid].chains.get(token, {})
+            
+            if not chains1 or not chains2:
+                logging.debug(f"{symbol}{cex_ask}->{cex_bid} was reject because i couldn't get chain info")
+                continue
+
+            intersection = find_dicts_intersection(chains1, chains2)
+
+            if len(intersection) == 0:
+                logging.debug(f"{symbol}{cex_ask}->{cex_bid} was reject because i there is no same chains between these 2 cexes for this symbol")
+                continue
+            
+            for chain in intersection:
+                if not bool(chains1[chain]['withdraw']) or not bool(chains2[chain]['deposit']):
+                    logging.debug(f"{symbol}{cex_ask}->{cex_bid} was reject because there is withdraw or deposit are permitted on one of these 2 cexes for this symbol")
+                    continue
+
+                res.append(chain)
+            
+            min_fee = min([float(chains1[chain]['withdraw']) for chain in res])
+
+            spread['withdraw_fee'] = min_fee
+            # spread['trading_fee'] = self.markets[cex_ask].TRADING_FEE + self.markets[cex_bid].TRADING_FEE
+            spread['ask_trade_fee'] = self.markets[cex_ask].TRADING_FEE
+            spread['bid_trade_fee'] = self.markets[cex_bid].TRADING_FEE
+            spread['chains'] = res 
+
+            result.append(spread)
+        return result
 
     def scan(self):
         """
@@ -245,11 +321,19 @@ class ArbitrageBot:
         #     self.depths = json.load(file)
         
         spreads = self.find_spread(self.depths)
+        filtered_spreads = self.filter_spreads(spreads)
+
         logging.debug(f"Spreads have been found. Found {len(spreads)} spreads")
 
-        for opportunity in spreads:
+
+        for spread in filtered_spreads:
+            self.spreads_buffer.add(
+                (spread['symbols'], spread['cex_ask'], spread['cex_bid'])
+            )
+
+        for opportunity in filtered_spreads:
             for observer in self.observers:
-                observer.opportunity(*opportunity)
+                observer.opportunity(**opportunity)
 
         # print(self.depths)
 
@@ -275,9 +359,11 @@ class ArbitrageBot:
                     scan = self._find_spread_by_two_cex(cex1, cex1_info, cex2, cex2_info)
 
                     if scan:
-                        spreads.append(tuple(
-                            list(scan) + [symbol]
-                        ))
+                        scan['symbols'] = symbol
+                        # spreads.append(tuple(
+                        #     list(scan) + [symbol]
+                        # ))
+                        spreads.append(scan)
 
                     cex_pairs.add((cex1, cex2))
 
