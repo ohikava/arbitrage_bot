@@ -3,6 +3,10 @@ import aiohttp
 import time
 
 APIURL = "https://api.bitget.com"
+
+chains_formater = {
+}
+
 class BitGet(Market):
     def __init__(self) -> None:
         super().__init__()
@@ -52,4 +56,16 @@ class BitGet(Market):
         self.last_request = time.time()
 
         for chain in res['data']:
-            self.chains[chain['coinName']] = chain['chains']
+            networkList = chain['chains']
+            self.chains[chain['coinName']] = dict()
+
+            for network in networkList:
+                formated_name = chains_formater.get(network['chain'], network['chain'])
+                self.chains[chain['coinName']][formated_name] = {
+                    'deposit': bool(network.get('rechargeable', None)),
+                    'withdraw': bool(network.get('withdrawable', None)),
+                    'withdrawFee': network.get('withdrawFee', None),
+                    'withdrawMin': network.get('minWithdrawAmount', None),
+                    'withdrawMax': network.get('withdrawMax', None),
+                    'contract': network.get('contract', None),
+                }

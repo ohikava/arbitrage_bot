@@ -1,5 +1,6 @@
 from arbitrage import config 
 from arbitrage.tokens import Tokens, ONLY_STABLECOINS
+from arbitrage.utils.chains_mapper import chains_mapping
 import logging
 import time 
 from datetime import datetime 
@@ -13,7 +14,7 @@ logging.getLogger("asyncio").setLevel(logging.WARNING)
 
 class ArbitrageBot:
     def __init__(self) -> None:
-        self.markets = []
+        self.markets = {}
         self.observers = []
         self.depths = {} 
         self.tokens = Tokens()
@@ -24,15 +25,16 @@ class ArbitrageBot:
         self.init_observers(config.observers)
 
         self.spread_limit = 0.05
-        self.symbols_update_interval = 60 * 60 * 2
-    
+        self.symbols_update_interval = 60 * 60 * 2   
+        self.chains_update_interval = 60 * 60 * 1
+
     async def _get_depths(self, pair):
         self.depths[pair] = {}
         tasks = []
         tasks_names = []
 
         async with aiohttp.ClientSession() as session:
-            for market in self.markets:
+            for market in self.markets.values():
                 if not market.check_symbol_listed(pair):
                     continue 
 
@@ -85,7 +87,6 @@ class ArbitrageBot:
         Function initializes markets modules
         :param markets_list: list of markets names that will be used in arbitrage
         """
-        self.markets_names = markets_list
         for market_name in markets_list:
             try:
                 exec("import arbitrage.cex." + market_name.lower())
@@ -93,7 +94,7 @@ class ArbitrageBot:
                     "arbitrage.cex." + market_name.lower() + "." + market_name + "()"
                 )
 
-                self.markets.append(market)
+                self.markets[market_name] = market
 
             except (ImportError, AttributeError) as e:
                 print(
@@ -130,27 +131,75 @@ class ArbitrageBot:
         i = 1
 
         self.last_symbols_update = None # Initialistion
+        self.last_chains_update = None # Initialistion
 
         while True:
             logging.debug(f"Iteration #{i} has started")
             self.update_symbols()
+            self.update_chains()
 
-            t_s = time.time()
-            self.scan()
-            t_e = time.time()
 
-            logging.debug(f"Iteration #{i} has ended. It took {t_e - t_s} seconds")
+            # Commented code below is used to get all available chains for every token in order to find out chains that has different names on different markets
+            # a = {}
+            # for symbol in self.tokens:
+            #     token = symbol.split("/")[0]
+            #     a[token] = []
+            #     for m in self.markets.values():
+            #         if m.check_symbol_listed(symbol) and token in m.chains:
+            #             for chain in m.chains[token]:
+            #                 a[token].append(chains_mapping.get(chain, chain))  
+            #     a[token] = list(set(a[token]))
+            # with open("logs/chains.json", "w") as file:
+            #     json.dump(a, file, indent=4)
+            # b = {j for i in a.values() for j in i}
+            # with open("logs/available_chains.json", "w") as file:
+            #     json.dump(list(b), file, indent=4)
+            
+
+            # t_s = time.time()
+            # self.scan()
+            # t_e = time.time()
+
+            # logging.debug(f"Iteration #{i} has ended. It took {t_e - t_s} seconds")
 
             time.sleep(config.refresh_rate)
             i += 1
     
+    def update_chains(self):
+        """
+        Function updates chains for every market
+        """
+        if not self.last_chains_update or time.time() - self.last_chains_update > self.chains_update_interval:
+            asyncio.run(self._load_available_chains())
+            
+            self.last_chains_update = time.time()
+
+    async def _load_available_chains(self):
+        """
+        Function loads available chains for every market
+        """
+        tasks = []
+        async with aiohttp.ClientSession() as session:
+            for market in self.markets.values():
+
+                task =  market.load_chains(session)
+                tasks.append(task)
+                
+                
+            responses = await asyncio.gather(*tasks, return_exceptions=True) 
+
+        for market_name, response in zip(self.markets, responses):
+            if not (response is None):
+                logging.error(f"{response.__class__.__name__}: {response} on {market_name} market during chains loading")
+                raise Exception(f"{response.__class__.__name__}: {response} on {market_name} market during chains loading")
+            
     async def _load_available_symbols(self):
         """
         Function loads available symbols for every market
         """
         tasks = []
         async with aiohttp.ClientSession() as session:
-            for market in self.markets:
+            for market in self.markets.values():
 
                 task =  market.load_symbols(session)
                 tasks.append(task)
@@ -158,9 +207,10 @@ class ArbitrageBot:
                 
             responses = await asyncio.gather(*tasks, return_exceptions=True) 
 
-        for ix, response in enumerate(responses):
+        for market_name, response in zip(self.markets, responses):
             if not (response is None):
-                raise Exception(f"{response.__class__.__name__}: {response} on {self.markets[ix].name} market")
+                logging.error(f"{response.__class__.__name__}: {response} on {market_name} market during symbols loading")
+                raise Exception(f"{response.__class__.__name__}: {response} on {market_name} market during symbols loading")
             
     def update_symbols(self):
         """
@@ -170,7 +220,7 @@ class ArbitrageBot:
                 asyncio.run(self._load_available_symbols())
                 self.last_symbols_update = time.time()
                 
-                self.tokens.update_list_of_tokens(self.markets)
+                self.tokens.update_list_of_tokens(self.markets.values())
 
 
     

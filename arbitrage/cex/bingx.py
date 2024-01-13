@@ -12,6 +12,8 @@ load_dotenv()
 
 APIURL = "https://open-api.bingx.com"
 
+chains_formater = {}
+
 class BingX(Market):
     def __init__(self) -> None:
         super().__init__()
@@ -105,5 +107,17 @@ class BingX(Market):
         self.last_request = time.time()
 
         for chain in res['data']:
-            self.chains[chain['coin']] = chain['networkList']
+            networkList = chain['networkList']
+            self.chains[chain['coin']] = dict()
+
+            for network in networkList:
+                formated_name = chains_formater.get(network['network'], network['network'])
+                self.chains[chain['coin']][formated_name] = {
+                    'deposit': bool(network.get('depositEnable', None)),
+                    'withdraw': bool(network.get('withdrawEnable', None)),
+                    'withdrawFee': network.get('withdrawFee', None),
+                    'withdrawMin': network.get('withdrawMin', None),
+                    'withdrawMax': network.get('withdrawMax', None),
+                    'contract': network.get('contract', None),
+                }
 

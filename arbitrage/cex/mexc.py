@@ -9,6 +9,11 @@ import time
 load_dotenv()
 
 APIURL = "https://api.mexc.com"
+
+chains_formater = {
+    'BNB Smart Chain(BEP20)': 'BEP20',
+    'Bitcoin(BTC)': 'BTC',
+}
 class MEXC(Market):
     def __init__(self) -> None:
         super().__init__()
@@ -88,5 +93,19 @@ class MEXC(Market):
         res = await self._send_request(uri, {}, session, headers=headers)
     
         for chain in res:
-            self.chains[chain['coin']] = chain['networkList']
+            networkList = chain['networkList']
+            self.chains[chain['coin']] = {
+                
+            }
+
+            for network in networkList:
+                formated_name = chains_formater.get(network['network'], network['network'])
+                self.chains[chain['coin']][formated_name] = {
+                    'deposit': network.get('depositEnable', None),
+                    'withdraw': network.get('withdrawEnable', None),
+                    'withdrawFee': network.get('withdrawFee', None),
+                    'withdrawMin': network.get('withdrawMin', None),
+                    'withdrawMax': network.get('withdrawMax', None),
+                    'contract': network.get('contract', None),
+                }
 

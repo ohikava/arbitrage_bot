@@ -12,6 +12,8 @@ load_dotenv()
 
 
 APIURL = "https://api.bybit.com"
+chains_formater = {
+}
 
 class ByBit(Market):
     def __init__(self) -> None:
@@ -84,9 +86,21 @@ class ByBit(Market):
         self.last_request = time.time()
 
         for chain in res['result']['rows']:
-            self.chains[chain['coin']] = chain['chains']
+            networkList = chain['chains']
+            self.chains[chain['coin']] = dict()
+
+            for network in networkList:
+                formated_name = chains_formater.get(network['chain'], network['chain'])
+                self.chains[chain['coin']][formated_name] = {
+                    'deposit': bool(network.get('chainDeposit', None)),
+                    'withdraw': bool(network.get('chainWithdraw', None)),
+                    'withdrawFee': network.get('withdrawFee', None),
+                    'withdrawMin': network.get('withdrawMin', None),
+                    'withdrawMax': network.get('withdrawMax', None),
+                    'contract': network.get('contract', None),
+                }
     
 
 
-    
+
 
