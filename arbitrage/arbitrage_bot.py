@@ -18,7 +18,7 @@ class ArbitrageBot:
         self.depths = {} 
         self.tokens = Tokens()
         self.tokens.set_filter(ONLY_STABLECOINS)
-        self.tokens.set_limit(5)
+        self.tokens.set_limit(100)
 
         self.init_markets(config.markets)
         self.init_observers(config.observers)
@@ -47,8 +47,8 @@ class ArbitrageBot:
                 market = tasks_names[i]
                 depth = responses[i]
 
-                if depth is None:
-                    continue
+                if type(depth) is not dict:
+                    logging.error(f"{market} market has returned invalid response: {depth.__class__.__name__} {depth}")
 
                 self.depths[pair][market] = depth
         
