@@ -20,7 +20,7 @@ class ArbitrageBot:
         self.depths = {} 
         self.tokens = Tokens()
         self.tokens.set_filter(ONLY_STABLECOINS)
-        self.tokens.set_limit(100)
+        self.tokens.set_limit(200)
 
         self.init_markets(config.markets)
         self.init_observers(config.observers)
@@ -292,12 +292,16 @@ class ArbitrageBot:
             
             for chain in intersection:
                 if not bool(chains1[chain]['withdraw']) or not bool(chains2[chain]['deposit']):
-                    logging.debug(f"{symbol}{cex_ask}->{cex_bid} was reject because there is withdraw or deposit are permitted on one of these 2 cexes for this symbol")
                     continue
 
                 res.append(chain)
             
-            min_fee = min([float(chains1[chain]['withdraw']) for chain in res])
+            if not res:
+                logging.debug(f"{symbol}{cex_ask}->{cex_bid} was reject because there is withdraw or deposit are permitted on one of these 2 cexes for this symbol")
+                continue
+
+            
+            min_fee = min([float(chains1[chain]['withdrawFee']) for chain in res])
 
             spread['withdraw_fee'] = min_fee
             # spread['trading_fee'] = self.markets[cex_ask].TRADING_FEE + self.markets[cex_bid].TRADING_FEE

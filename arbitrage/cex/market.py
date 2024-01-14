@@ -3,6 +3,7 @@ import time
 import aiohttp 
 import hmac 
 from hashlib import sha256
+from collections import deque
 
 class Market(object):
     def __init__(self) -> None:
@@ -11,7 +12,29 @@ class Market(object):
         self.last_request = None 
         self.requests_num = 0
         self.TRADING_FEE = 0.1
+
+        self.batch_transactions = deque()
+        self.LIMIT = 10
+        self.TIME_RATE = 1
         
+
+    def manage_time_restriction(self):
+        """
+        This function is used to follow markets rules on number of requests 
+        """
+        current_time = time.time()
+        if len(self.batch_transactions) < self.LIMIT:
+            self.batch_transactions.append(current_time)
+            return 
+        
+        if current_time - self.batch_transactions[0] < self.TIME_RATE: 
+            pause_time = self.TIME_RATE - current_time + self.batch_transactions[0] 
+            logging.debug(f"pausa for {pause_time} for {self.name} cex")
+            time.sleep(pause_time)
+            current_time = time.time()
+
+        self.batch_transactions.popleft()
+        self.batch_transactions.append(current_time)
 
     async def _send_request(self, uri: str, params: dict, session: aiohttp.ClientSession, headers: dict = {}):
         """
@@ -21,7 +44,8 @@ class Market(object):
         :param session: session that will be used to send requests
         :return: response of the request
         """
-        self.check_time_restrictions()
+        self.manage_time_restriction()
+
         if headers:
             async with session.get(uri, headers=headers, data={}) as response:
                 msg = await response.text()
@@ -32,6 +56,7 @@ class Market(object):
                 msg = await response.text()
                 if self.check_response(response, msg):
                     return await response.json()
+                
 
     async def get_symbol_depth(self, symbol: str, session: aiohttp.ClientSession, limit: int = 5) -> dict:
         """
@@ -72,7 +97,9 @@ class Market(object):
         This function is used to follow markets rules on number of requests
         """
         if self.requests_num >= self.LIMIT and time.time() - self.last_request <= self.TIME_RATE:
-            time.sleep(self.TIME_RATE - time.time() + self.last_request + 1)
+            pause_time = self.TIME_RATE - time.time() + self.last_request + 1
+            logging.debug(f"pausa for {pause_time} for {self.name} cex")
+            time.sleep(pause_time)
             self.requests_num = 0
 
     def check_response(self, response, msg):
