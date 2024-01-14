@@ -1,7 +1,7 @@
 from arbitrage import config 
 from arbitrage.tokens import Tokens, ONLY_STABLECOINS
 from arbitrage.utils.chains_mapper import chains_mapping
-from arbitrage.utils.funcs import find_dicts_intersection
+from arbitrage.utils.funcs import find_dicts_intersection, find_optimal_spread, get_spread, calculate_liquidity
 import logging
 import time 
 from datetime import datetime 
@@ -32,6 +32,8 @@ class ArbitrageBot:
 
         self.spreads_buffer = set()
         self.buffer_update_interval = 60 * 60 * 1
+
+        self.liquidity_limit = 30
 
     async def _get_depths(self, pair):
         self.depths[pair] = {}
@@ -78,28 +80,64 @@ class ArbitrageBot:
 
         spread1 = (bids_cex1[0] - asks_cex2[0]) / asks_cex2[0]
         if spread1 >= self.spread_limit:
+            if spread1 >= 0.15:
+                p1, p2, spread, liquidity = find_optimal_spread(cex2_info['asks'], cex1_info['bids'])
+                if liquidity < self.liquidity_limit:
+                    logging.debug(f"{cex2}->{cex1} was reject because liquidity is too low")
+                    return None
+                
+                bid_liquidity = calculate_liquidity(cex1_info['bids'][:p2+1])
+                ask_liquidity = calculate_liquidity(cex2_info['asks'][:p1+1])
+            else:
+                p1 = 0
+                p2 = 0
+                spread = spread1
+                bid_liquidity = calculate_liquidity(cex1_info['bids'][:p2+1])
+                ask_liquidity = calculate_liquidity(cex2_info['asks'][:p1+1])
+
             res = {
                 "cex_bid": cex1,
                 "cex_ask": cex2,
                 "bid_price": cex1_info['bids'][0][0],
+                "bid_price_2": cex1_info['bids'][p2][0],
                 "ask_price": cex2_info['asks'][0][0],
+                "ask_price_2": cex2_info['asks'][p1][0],
                 "spread": str(spread1),
-                "bid_liquidity": cex1_info['bids'][0][1],
-                "ask_liquidity": cex2_info['asks'][0][1],
+                "spread_2": str(spread),
+                "bid_liquidity": bid_liquidity,
+                "ask_liquidity": ask_liquidity
             }
             return res
             # return (cex1, cex2, cex1_info['bids'][0][0], cex2_info['asks'][0][0], str(spread1), cex1_info['bids'][0][1], cex2_info['asks'][0][1])
         
         spread2 = (bids_cex2[0] - asks_cex1[0]) / asks_cex1[0]
         if spread2 >= self.spread_limit:
+            if spread2 >= 0.15:
+                p1, p2, spread, liquidity = find_optimal_spread(cex1_info['asks'], cex2_info['bids'])
+                if liquidity < self.liquidity_limit:
+                    logging.debug(f"{cex1}->{cex2} was reject because liquidity is too low")
+                    return None
+                
+                bid_liquidity = calculate_liquidity(cex2_info['bids'][:p2+1])
+                ask_liquidity = calculate_liquidity(cex1_info['asks'][:p1+1])
+            else:
+                p1 = 0
+                p2 = 0
+                spread = spread2
+                bid_liquidity = calculate_liquidity(cex2_info['bids'][:p2+1])
+                ask_liquidity = calculate_liquidity(cex1_info['asks'][:p1+1])
+
             res = {
                 "cex_bid": cex2,
                 "cex_ask": cex1,
                 "bid_price": cex2_info['bids'][0][0],
+                "bid_price_2": cex2_info['bids'][p2][0],
                 "ask_price": cex1_info['asks'][0][0],
+                "ask_price_2": cex1_info['asks'][p1][0],
                 "spread": str(spread2),
-                "bid_liquidity": cex2_info['bids'][0][1],
-                "ask_liquidity": cex1_info['asks'][0][1],
+                "spread_2": str(spread),
+                "bid_liquidity": bid_liquidity,
+                "ask_liquidity": ask_liquidity
             }
             return res 
             # return (cex2, cex1, cex2_info['bids'][0][0], cex1_info['asks'][0][0], str(spread2), cex2_info['bids'][0][1], cex1_info['asks'][0][1])

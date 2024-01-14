@@ -21,6 +21,9 @@ class TelegramBot(Observer):
         withdraw_fee: float,
         ask_trade_fee: float,
         bid_trade_fee: float,
+        bid_price_2: str,
+        ask_price_2: str,
+        spread_2: str
     ):  
         url = f"{URL}/opportunity"
         body = {
@@ -36,5 +39,8 @@ class TelegramBot(Observer):
             "withdraw_fee": withdraw_fee,
             "ask_trade_fee": ask_trade_fee,
             "bid_trade_fee": bid_trade_fee,
+            "bid_price_2": bid_price_2,
+            "ask_price_2": ask_price_2,
+            "spread_2": spread_2
         }
         res = requests.post(url, data=json.dumps(body))
