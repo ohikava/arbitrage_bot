@@ -346,6 +346,11 @@ class ArbitrageBot:
             
             min_fee = min([float(chains1[chain]['withdrawFee']) for chain in res])
 
+            if min_fee == float('inf'):
+                min_fee = min([float(chains2[chain]['withdrawFee']) for chain in res])
+
+
+
             spread['withdraw_fee'] = min_fee
             # spread['trading_fee'] = self.markets[cex_ask].TRADING_FEE + self.markets[cex_bid].TRADING_FEE
             spread['ask_trade_fee'] = self.markets[cex_ask].TRADING_FEE
@@ -380,7 +385,7 @@ class ArbitrageBot:
 
         for opportunity in filtered_spreads:
             for observer in self.observers:
-                observer.opportunity(**opportunity)
+                observer.opportunity(**opportunity) 
 
         # print(self.depths)
 

@@ -3,7 +3,8 @@ markets = [
     'BitGet',
     'MEXC',
     'BingX',
-    'Binance'
+    'Binance',
+    'LBank'
 ]
 
 observers = ['Logger', 'TelegramBot']

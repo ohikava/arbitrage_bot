@@ -71,7 +71,7 @@ class Binance(Market):
     async def load_chains(self, session):
         self.chains = {}
 
-        endpoint = "/sapi/v1/capital/config/getall"
+        endpoint = "sapi/v1/capital/config/getall"
         
         uri = f"{APIURL}/{endpoint}"
         
