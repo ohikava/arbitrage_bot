@@ -61,7 +61,7 @@ class ArbitrageBot:
 
                 self.depths[pair][market] = depth
         
-    def _find_spread_by_two_cex(self, cex1:str, cex1_info:dict, cex2:str, cex2_info:dict) -> dict | None:
+    def _find_spread_by_two_cex(self, symbol: str, cex1:str, cex1_info:dict, cex2:str, cex2_info:dict) -> dict | None:
         """
         Function finds spread by two cex 
         :param cex1: this is name of cex1
@@ -75,19 +75,21 @@ class ArbitrageBot:
 
         asks_cex1 = [float(i[0]) for i in cex1_info['asks']]
         asks_cex2 = [float(i[0]) for i in cex2_info['asks']]
-
         
-
-        spread1 = (bids_cex1[0] - asks_cex2[0]) / asks_cex2[0]
+        try:
+            spread1 = (bids_cex1[0] - asks_cex2[0]) / asks_cex2[0]
+        except:
+            return None 
         if spread1 >= self.spread_limit:
             if spread1 >= 0.15:
                 p1, p2, spread, liquidity = find_optimal_spread(cex2_info['asks'], cex1_info['bids'])
-                if liquidity < self.liquidity_limit:
-                    logging.debug(f"{cex2}->{cex1} was reject because liquidity is too low")
-                    return None
                 
                 bid_liquidity = calculate_liquidity(cex1_info['bids'][:p2+1])
                 ask_liquidity = calculate_liquidity(cex2_info['asks'][:p1+1])
+
+                if min(bid_liquidity, ask_liquidity) < self.liquidity_limit:
+                    logging.debug(f"{symbol} {cex2}->{cex1} was reject because liquidity is too low")
+                    return None
             else:
                 p1 = 0
                 p2 = 0
@@ -109,17 +111,20 @@ class ArbitrageBot:
             }
             return res
             # return (cex1, cex2, cex1_info['bids'][0][0], cex2_info['asks'][0][0], str(spread1), cex1_info['bids'][0][1], cex2_info['asks'][0][1])
-        
-        spread2 = (bids_cex2[0] - asks_cex1[0]) / asks_cex1[0]
+        try:
+            spread2 = (bids_cex2[0] - asks_cex1[0]) / asks_cex1[0]
+        except:
+            return None 
         if spread2 >= self.spread_limit:
             if spread2 >= 0.15:
                 p1, p2, spread, liquidity = find_optimal_spread(cex1_info['asks'], cex2_info['bids'])
-                if liquidity < self.liquidity_limit:
-                    logging.debug(f"{cex1}->{cex2} was reject because liquidity is too low")
-                    return None
                 
                 bid_liquidity = calculate_liquidity(cex2_info['bids'][:p2+1])
                 ask_liquidity = calculate_liquidity(cex1_info['asks'][:p1+1])
+
+                if min(bid_liquidity, ask_liquidity) < self.liquidity_limit:
+                    logging.debug(f"{symbol} {cex2}->{cex1} was reject because liquidity is too low")
+                    return None
             else:
                 p1 = 0
                 p2 = 0
@@ -398,7 +403,7 @@ class ArbitrageBot:
                     cex1_info = symbol_data[cex1]
                     cex2_info = symbol_data[cex2]
                     
-                    scan = self._find_spread_by_two_cex(cex1, cex1_info, cex2, cex2_info)
+                    scan = self._find_spread_by_two_cex(symbol, cex1, cex1_info, cex2, cex2_info)
 
                     if scan:
                         scan['symbols'] = symbol
