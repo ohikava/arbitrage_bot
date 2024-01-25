@@ -116,7 +116,7 @@ class ArbitrageBot:
         except:
             return None 
         if spread2 >= self.spread_limit:
-            if spread2 >= 0.15:
+            if False and spread2 >= 0.15:
                 p1, p2, spread, liquidity = find_optimal_spread(cex1_info['asks'], cex2_info['bids'])
                 
                 bid_liquidity = calculate_liquidity(cex2_info['bids'][:p2+1])
